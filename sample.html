@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MET Speaking Emulator (No Recording)</title>
+  <style>
+    :root{
+      --bg:#f3f5f8;
+      --card:#ffffff;
+      --text:#1b1f28;
+      --muted:#6b7280;
+      --line:#e6e9ef;
+      --blue:#1f6feb;
+      --blue2:#2b7cff;
+      --shadow: 0 10px 30px rgba(17,24,39,.08);
+      --radius: 16px;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    body{ margin:0; font-family:var(--font); background:var(--bg); color:var(--text); }
+
+    .topbar{
+      height:56px; background:#fff; border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center;
+      position:sticky; top:0; z-index:5;
+    }
+    .topbar .inner{
+      width:min(980px, calc(100% - 32px));
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .brand{ display:flex;align-items:center;gap:10px; font-weight:650; letter-spacing:.2px; }
+    .dot{
+      width:12px;height:12px;border-radius:50%;
+      background:linear-gradient(135deg,var(--blue),#6aa8ff);
+      box-shadow:0 0 0 4px rgba(31,111,235,.12);
+    }
+    .step{ font-size:14px;color:var(--muted); white-space:nowrap; }
+
+    .wrap{ width:min(980px, calc(100% - 32px)); margin:22px auto 60px; }
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:22px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .questionBlock{ padding:4px 2px 10px; }
+    .questionTitle{ font-size:22px; line-height:1.25; font-weight:650; margin:0 0 6px 0; }
+    .questionSub{ margin:0; color:var(--muted); font-size:14px; line-height:1.4; }
+
+    .q1Instruction{ margin:0; font-size:20px; font-weight:650; line-height:1.25; letter-spacing:.1px; }
+    .q1Instruction .small{ display:block; font-size:18px; font-weight:650; margin-top:2px; }
+    .q1Instruction .tiny{ display:block; font-size:16px; font-weight:600; color:#374151; margin-top:8px; }
+
+    .beginLine{
+      margin-top:14px; font-size:18px; font-weight:750; color:var(--text);
+      opacity:0; transform:translateY(2px);
+      transition:opacity .25s ease, transform .25s ease;
+    }
+    .beginLine.show{ opacity:1; transform:translateY(0); }
+
+    .timerRow{ margin-top:14px; display:flex; align-items:center; justify-content:flex-start; gap:10px; }
+    .timerLabel{ font-size:14px; color:var(--muted); font-weight:600; }
+    .timerValue{ font-variant-numeric: tabular-nums; font-size:14px; color:var(--muted); font-weight:800; }
+
+    .barOuter{
+      margin-top:10px; height:10px; width:100%;
+      background:#eaf2ff; border-radius:999px; overflow:hidden;
+      border:1px solid rgba(31,111,235,.15);
+    }
+    .barInner{
+      height:100%; width:100%;
+      background:linear-gradient(90deg,var(--blue),var(--blue2));
+      border-radius:999px;
+      transform-origin:left center;
+      transform:scaleX(1);
+      transition:transform .1s linear;
+    }
+
+    .capture{
+      margin-top:18px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:linear-gradient(180deg,#fff,#fbfcff);
+      height:190px;
+      display:flex; align-items:center; justify-content:center;
+      position:relative; overflow:hidden;
+    }
+    .capture .caption{
+      position:absolute;
+      top:14px; left:16px;
+      font-size:13px; color:var(--muted); font-weight:650; letter-spacing:.2px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .micDot{ width:10px;height:10px;border-radius:50%; background:#cbd5e1; box-shadow:0 0 0 4px rgba(203,213,225,.35); }
+    canvas#wave{ width:100%; height:100%; display:block; }
+
+    .q1ImageBox{
+      margin-top:16px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:#fff;
+      overflow:hidden;
+      height:520px;
+      display:flex; align-items:center; justify-content:center;
+      position:relative;
+    }
+    .q1ImageBox img{ width:100%; height:100%; object-fit:contain; background:#fff; display:block; }
+
+    .bottomRow{ margin-top:16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .hint{ font-size:13px; color:var(--muted); }
+    .btn{
+      border:1px solid rgba(31,111,235,.25);
+      background:linear-gradient(180deg,#ffffff,#f6faff);
+      color:#0f3e95;
+      font-weight:750;
+      border-radius:12px;
+      padding:10px 14px;
+      cursor:pointer;
+      user-select:none;
+      display:inline-flex; align-items:center; gap:10px;
+      box-shadow: 0 6px 18px rgba(31,111,235,.10);
+    }
+    .arrow{
+      width:10px;height:10px;border-right:2px solid currentColor;border-top:2px solid currentColor;
+      transform:rotate(45deg);
+      margin-left:2px;
+    }
+
+    .modalBack{ position:fixed; inset:0; background:rgba(17,24,39,.45); display:none; align-items:center; justify-content:center; z-index:50; padding:18px; }
+    .modalBack.show{ display:flex; }
+    .modal{ width:min(520px,100%); background:#fff; border-radius:18px; border:1px solid var(--line); box-shadow: 0 22px 60px rgba(0,0,0,.25); padding:18px; }
+    .modal h3{ margin:0 0 8px 0; font-size:18px; }
+    .modal p{ margin:0 0 14px 0; color:var(--muted); line-height:1.45; font-size:14px; }
+    .modalActions{ display:flex; justify-content:flex-end; gap:10px; margin-top:6px; }
+    .btnPlain{ border:1px solid var(--line); background:#fff; color:#111827; font-weight:700; border-radius:12px; padding:10px 14px; cursor:pointer; }
+    .btnDanger{ border:1px solid rgba(220,38,38,.25); background:linear-gradient(180deg,#fff,#fff5f5); color:#991b1b; font-weight:800; border-radius:12px; padding:10px 14px; cursor:pointer; }
+
+    .audioGate{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(17,24,39,.55); z-index:60; padding:18px; }
+    .audioGate.show{ display:flex; }
+    .audioGate .panel{ width:min(560px,100%); background:#fff; border-radius:18px; border:1px solid var(--line); box-shadow: 0 22px 60px rgba(0,0,0,.25); padding:18px; }
+
+    .fakeVideo{ margin-top:14px; }
+    .fakeVideoFrame{
+      position:relative;
+      width:100%;
+      aspect-ratio: 16 / 9;
+      border-radius:14px;
+      overflow:hidden;
+      background:#000;
+      border:1px solid rgba(17,24,39,.15);
+    }
+    .fakeVideoFrame img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .fadeOverlay{ position:absolute; inset:0; background:#000; opacity:1; transition: opacity 1.6s ease; pointer-events:none; }
+    .fakeControls{
+      margin-top:10px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:linear-gradient(180deg,#fff,#fbfdff);
+      padding:10px 12px;
+      display:flex; align-items:center; gap:12px;
+    }
+    .playIcon{ width:0; height:0; border-left:12px solid rgba(31,111,235,.85); border-top:8px solid transparent; border-bottom:8px solid transparent; opacity:.55; flex:0 0 auto; }
+    .timeText{ font-variant-numeric: tabular-nums; font-size:13px; color:var(--muted); font-weight:750; white-space:nowrap; flex:0 0 auto; }
+    .track{ position:relative; height:8px; flex:1 1 auto; background:#eaf2ff; border-radius:999px; overflow:hidden; border:1px solid rgba(31,111,235,.15); }
+    .fill{ position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg,var(--blue),var(--blue2)); }
+    .knob{ position:absolute; top:50%; transform:translate(-50%,-50%); width:14px; height:14px; border-radius:999px; background:#fff; border:2px solid rgba(31,111,235,.75); box-shadow:0 6px 16px rgba(31,111,235,.18); left:0%; pointer-events:none; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="inner">
+      <div class="brand"><span class="dot"></span><span>Speaking Section</span></div>
+      <div class="step" id="stepText"></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card" id="card"></section>
+  </main>
+
+  <div class="modalBack" id="modalBack" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal">
+      <h3>Skip to next question?</h3>
+      <p>Are you sure you want to skip to the next question? Your answer will be incomplete if you do.</p>
+      <div class="modalActions">
+        <button class="btnPlain" id="modalCancel">Cancel</button>
+        <button class="btnDanger" id="modalConfirm">Skip</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="audioGate" id="audioGate">
+    <div class="panel">
+      <h3>Enable audio</h3>
+      <p>Your browser may require one click before text-to-speech can start.</p>
+      <button class="btn" id="enableAudioBtn">Enable Audio <span class="arrow"></span></button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const IMG_DIR = "img/";
+
+  const steps = [
+    { type: "interstitial", imgSrc: IMG_DIR + "spkintro.jpg" },
+    { type: "question-image", qIndex: 1, durationSec: 60, q1Blank: "office", q1ImageSrc: IMG_DIR + "office1.png" },
+    { type: "question-text", qIndex: 2, durationSec: 60, prompt: "Talk about a time when you went to an office." },
+    { type: "question-text", qIndex: 3, durationSec: 60, prompt: "Some people like working in offices, while others don't. What do you think?" },
+    { type: "interstitial", imgSrc: IMG_DIR + "spkinterst.jpg" },
+    { type: "question-text", qIndex: 4, durationSec: 90, prompt: "Your friend wants to buy an elephant. What are the advantages and disadvantages of this idea?" },
+    { type: "question-text", qIndex: 5, durationSec: 90, prompt: "Your child's school is going to close. I am the mayor of your town. Convince me to keep the school open." },
+    { type: "done", ttsText: "You have completed the speaking section. Thank you." }
+  ];
+
+  let currentStep = 0;
+  let timer = null;
+  let remainingMs = 0;
+  let running = false;
+
+  const synth = window.speechSynthesis;
+  let hasUserEnabledAudio = false;
+  let speechBlocked = false;
+
+  let waveRaf = null;
+  let waveT0 = 0;
+
+  let pendingNextResolve = null;
+
+  let interInterval = null;
+  let interTimeouts = [];
+
+  const card = document.getElementById("card");
+  const stepText = document.getElementById("stepText");
+  const modalBack = document.getElementById("modalBack");
+  const modalCancel = document.getElementById("modalCancel");
+  const modalConfirm = document.getElementById("modalConfirm");
+  const audioGate = document.getElementById("audioGate");
+  const enableAudioBtn = document.getElementById("enableAudioBtn");
+
+  const pad2 = n => String(n).padStart(2,"0");
+  const fmtTime = (ms) => {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${pad2(r)}`;
+  };
+  const fmtClock = (sec) => {
+    const s = Math.max(0, Math.floor(sec));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${pad2(r)}`;
+  };
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, ch => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  }[ch]));
+}
+
+  function updateHeader() {
+    const questionSteps = steps.filter(s => s.type.startsWith("question"));
+    const active = steps[currentStep];
+    if (active.type.startsWith("question")) {
+      stepText.textContent = `Question ${active.qIndex} of ${questionSteps.length}`;
+    } else {
+      stepText.textContent = active.type === "done" ? "Complete" : "";
+    }
+  }
+
+  function stopWave(){ if (waveRaf) cancelAnimationFrame(waveRaf); waveRaf = null; }
+  function cancelSpeech(){ try { synth.cancel(); } catch {} }
+  function stopInterstitialPlayback(){
+    if (interInterval) clearInterval(interInterval);
+    interInterval = null;
+    for (const t of interTimeouts) clearTimeout(t);
+    interTimeouts = [];
+  }
+
+  function showModal(){ modalBack.classList.add("show"); modalBack.setAttribute("aria-hidden","false"); }
+  function hideModal(){ modalBack.classList.remove("show"); modalBack.setAttribute("aria-hidden","true"); }
+  function confirmSkip(){
+    return new Promise((resolve) => { pendingNextResolve = resolve; showModal(); });
+  }
+  modalCancel.addEventListener("click", () => { hideModal(); pendingNextResolve?.(false); pendingNextResolve = null; });
+  modalConfirm.addEventListener("click", () => { hideModal(); pendingNextResolve?.(true); pendingNextResolve = null; });
+  modalBack.addEventListener("click", (e) => {
+    if (e.target === modalBack) { hideModal(); pendingNextResolve?.(false); pendingNextResolve = null; }
+  });
+
+  function showAudioGate(){ audioGate.classList.add("show"); }
+  function hideAudioGate(){ audioGate.classList.remove("show"); }
+  enableAudioBtn.addEventListener("click", () => { hasUserEnabledAudio = true; speechBlocked = false; hideAudioGate(); render(); });
+
+  function ensureVoicesLoaded(){ try { synth.getVoices(); } catch {} }
+  function pickEnglishVoice(){
+    const voices = synth.getVoices?.() || [];
+    if (!voices.length) return null;
+    return (
+      voices.find(v => /google/i.test(v.name) && /en-US/i.test(v.lang)) ||
+      voices.find(v => /google/i.test(v.name) && /^en/i.test(v.lang)) ||
+      voices.find(v => /en-US/i.test(v.lang)) ||
+      voices.find(v => /^en/i.test(v.lang)) ||
+      voices[0] || null
+    );
+  }
+  async function waitForVoices(timeoutMs = 900){
+    ensureVoicesLoaded();
+    if ((synth.getVoices?.() || []).length) return;
+    await new Promise((resolve) => {
+      let done = false;
+      const t = setTimeout(() => { if (!done) { done = true; resolve(); } }, timeoutMs);
+      const handler = () => {
+        if (done) return;
+        const voices = synth.getVoices?.() || [];
+        if (voices.length) {
+          done = true; clearTimeout(t);
+          if (synth.removeEventListener) synth.removeEventListener("voiceschanged", handler);
+          resolve();
+        }
+      };
+      if (synth.addEventListener) synth.addEventListener("voiceschanged", handler);
+      else synth.onvoiceschanged = handler;
+    });
+  }
+  function speak(text){
+    return new Promise((resolve) => {
+      if (!("speechSynthesis" in window)) return resolve();
+      const u = new SpeechSynthesisUtterance(text);
+      const v = pickEnglishVoice();
+      if (v) u.voice = v;
+      u.rate = 0.90;
+      u.pitch = 1.0;
+      u.onend = resolve;
+      u.onerror = resolve;
+
+      const startCheck = setTimeout(() => {
+        const started = synth.speaking || synth.pending;
+        if (!started && !hasUserEnabledAudio) { speechBlocked = true; showAudioGate(); resolve(); }
+      }, 250);
+
+      try { synth.speak(u); } catch { clearTimeout(startCheck); resolve(); }
+    });
+  }
+  async function speakIfAllowed(text){
+    if (speechBlocked && !hasUserEnabledAudio) return;
+    cancelSpeech();
+    await waitForVoices();
+    await speak(text);
+  }
+
+  function startWave(canvas){
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    function resize(){
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+    resize();
+    window.addEventListener("resize", resize, { passive:true });
+
+    waveT0 = performance.now();
+    const bars = 64;
+
+    const draw = (t) => {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      ctx.clearRect(0,0,w,h);
+
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(31,111,235,.12)";
+      ctx.beginPath();
+      ctx.moveTo(0, h/2);
+      ctx.lineTo(w, h/2);
+      ctx.stroke();
+
+      const gap = w / (bars + 2);
+      const mid = h/2;
+      const dt = running ? ((t - waveT0) / 1000) : 0;
+
+      for (let i = 0; i < bars; i++){
+        const x = (i + 1) * gap;
+        const base = running ? 0.55 : 0.20;
+        const mod = running
+          ? (Math.sin(dt*2.2 + i*0.35) * 0.25 + Math.sin(dt*3.7 + i*0.18) * 0.18)
+          : (Math.sin(i*0.35) * 0.10);
+
+        const amp = Math.max(0.06, base + mod);
+        const shape = (0.35 + 0.65 * Math.sin((i/bars)*Math.PI));
+        const barH = amp * (h * 0.75) * shape;
+
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = running ? "rgba(31,111,235,.75)" : "rgba(148,163,184,.65)";
+        ctx.beginPath();
+        ctx.moveTo(x, mid - barH/2);
+        ctx.lineTo(x, mid + barH/2);
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = .35;
+      ctx.fillStyle = "rgba(31,111,235,.08)";
+      ctx.fillRect(0,0,w,h);
+
+      waveRaf = requestAnimationFrame(draw);
+    };
+
+    waveRaf = requestAnimationFrame(draw);
+  }
+
+  function startFakeImageVideoPlayback(durationSec = 35, fadeSec = 1.6){
+    stopInterstitialPlayback();
+    const overlay = document.getElementById("fadeOverlay");
+    const timeNowEl = document.getElementById("fakeTimeNow");
+    const timeTotalEl = document.getElementById("fakeTimeTotal");
+    const fill = document.getElementById("fakeFill");
+    const knob = document.getElementById("fakeKnob");
+    if (!overlay || !timeNowEl || !timeTotalEl || !fill || !knob) return;
+
+    timeTotalEl.textContent = fmtClock(durationSec);
+    timeNowEl.textContent = "0:00";
+    fill.style.width = "0%";
+    knob.style.left = "0%";
+
+    overlay.style.transitionDuration = `${fadeSec}s`;
+    overlay.style.opacity = "1";
+    interTimeouts.push(setTimeout(() => { overlay.style.opacity = "0"; }, 60));
+
+    const t0 = performance.now();
+    interInterval = setInterval(() => {
+      const elapsed = Math.min(durationSec, (performance.now() - t0) / 1000);
+      const pct = (elapsed / durationSec) * 100;
+      timeNowEl.textContent = fmtClock(elapsed);
+      fill.style.width = `${pct}%`;
+      knob.style.left = `${pct}%`;
+      if (elapsed >= durationSec) { clearInterval(interInterval); interInterval = null; }
+    }, 100);
+
+    const fadeOutAtMs = Math.max(0, (durationSec - fadeSec) * 1000);
+    interTimeouts.push(setTimeout(() => { overlay.style.opacity = "1"; }, fadeOutAtMs));
+  }
+
+  function shouldAutoAdvanceThisQuestion(){
+    const s = steps[currentStep];
+    if (!s.type.startsWith("question")) return false;
+    return (s.qIndex <= 4);
+  }
+
+  function startCountdown(durationSec){
+    const timeValue = document.getElementById("timeValue");
+    const barInner = document.getElementById("barInner");
+
+    remainingMs = durationSec * 1000;
+    const totalMs = remainingMs;
+
+    running = true;
+    if (timeValue) timeValue.textContent = fmtTime(remainingMs);
+    if (barInner) barInner.style.transform = "scaleX(1)";
+
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => {
+      remainingMs -= 100;
+      if (remainingMs < 0) remainingMs = 0;
+
+      const frac = totalMs ? (remainingMs / totalMs) : 0;
+      if (timeValue) timeValue.textContent = fmtTime(remainingMs);
+      if (barInner) barInner.style.transform = `scaleX(${Math.max(0, frac)})`;
+
+      if (remainingMs <= 0) {
+        clearInterval(timer);
+        timer = null;
+        running = false;
+        if (shouldAutoAdvanceThisQuestion()) goNext();
+      }
+    }, 100);
+  }
+
+  function goNext(){
+    if (timer) clearInterval(timer);
+    timer = null;
+    running = false;
+
+    stopInterstitialPlayback();
+    cancelSpeech();
+    currentStep = Math.min(currentStep + 1, steps.length - 1);
+    render();
+  }
+
+  async function wireNextButton(isQuestionPage){
+    const nextBtn = document.getElementById("nextBtn");
+    nextBtn.addEventListener("click", async () => {
+      if (isQuestionPage && running && remainingMs > 0) {
+        const ok = await confirmSkip();
+        if (!ok) return;
+        goNext();
+        return;
+      }
+      goNext();
+    });
+  }
+
+  async function runQuestionFlow(durationSec, ttsSequence){
+    for (const phrase of ttsSequence) {
+      await speakIfAllowed(phrase);
+      if (speechBlocked && !hasUserEnabledAudio) return;
+    }
+    const beginLine = document.getElementById("beginLine");
+    if (beginLine) beginLine.classList.add("show");
+    startCountdown(durationSec);
+  }
+
+  function render(){
+    if (timer) clearInterval(timer);
+    timer = null;
+    running = false;
+
+    stopWave();
+    stopInterstitialPlayback();
+    cancelSpeech();
+    updateHeader();
+
+    const s = steps[currentStep];
+
+    if (s.type === "interstitial") {
+      card.innerHTML = `
+        <div class="questionBlock">
+          <div class="fakeVideo">
+            <div class="fakeVideoFrame" aria-label="Interstitial image">
+              <img src="${escapeHtml(s.imgSrc)}" alt="Interstitial image" />
+              <div class="fadeOverlay" id="fadeOverlay"></div>
+            </div>
+            <div class="fakeControls" aria-label="Fake video controls">
+              <div class="playIcon" aria-hidden="true"></div>
+              <div class="timeText"><span id="fakeTimeNow">0:00</span> / <span id="fakeTimeTotal">0:35</span></div>
+              <div class="track" aria-hidden="true">
+                <div class="fill" id="fakeFill"></div>
+                <div class="knob" id="fakeKnob"></div>
+              </div>
+            </div>
+          </div>
+          <div class="bottomRow">
+            <div class="hint"></div>
+            <button class="btn" id="nextBtn">Next <span class="arrow"></span></button>
+          </div>
+        </div>
+      `;
+      document.getElementById("nextBtn").addEventListener("click", () => goNext());
+      startFakeImageVideoPlayback(35, 1.6);
+      return;
+    }
+
+    if (s.type === "question-image") {
+      const blank = String(s.q1Blank || "picture").trim();
+      const line1 = `Please describe this ${blank}.`;
+      const line2 = "You have 60 seconds to talk.";
+      const line3 = "You should try to say as much as you can.";
+      const q1TTS = `${line1} ${line2} ${line3}`;
+
+      card.innerHTML = `
+        <div class="questionBlock">
+          <p class="q1Instruction">
+            ${escapeHtml(line1)}<br/>
+            <span class="small">${escapeHtml(line2)}</span>
+            <span class="tiny">${escapeHtml(line3)}</span>
+          </p>
+
+          <div class="beginLine" id="beginLine">Begin Speaking Now</div>
+
+          <div class="q1ImageBox" aria-label="Question 1 image">
+            <img src="${escapeHtml(s.q1ImageSrc)}" alt="Question 1 image" />
+          </div>
+
+          <div class="timerRow">
+            <div class="timerLabel">Time remaining</div>
+            <div class="timerValue" id="timeValue">--:--</div>
+          </div>
+          <div class="barOuter" aria-hidden="true"><div class="barInner" id="barInner"></div></div>
+
+          <div class="capture" aria-label="Audio capture (not recording)">
+            <div class="caption"><span class="micDot"></span> Audio capture</div>
+            <canvas id="wave"></canvas>
+          </div>
+
+          <div class="bottomRow">
+            <div class="hint">Speak clearly until time ends.</div>
+            <button class="btn" id="nextBtn">Next <span class="arrow"></span></button>
+          </div>
+        </div>
+      `;
+
+      startWave(document.getElementById("wave"));
+      wireNextButton(true);
+      runQuestionFlow(s.durationSec, [q1TTS, "Begin Speaking Now"]);
+      return;
+    }
+
+    if (s.type === "question-text") {
+      const secs = s.durationSec;
+      const sub = `You have ${secs} seconds to talk. You should try to say as much as you can.`;
+
+      card.innerHTML = `
+        <div class="questionBlock">
+          <h2 class="questionTitle">${escapeHtml(s.prompt)}</h2>
+          <p class="questionSub">${escapeHtml(sub)}</p>
+
+          <div class="beginLine" id="beginLine">Begin Speaking Now</div>
+
+          <div class="timerRow">
+            <div class="timerLabel">Time remaining</div>
+            <div class="timerValue" id="timeValue">--:--</div>
+          </div>
+          <div class="barOuter" aria-hidden="true"><div class="barInner" id="barInner"></div></div>
+
+          <div class="capture" aria-label="Audio capture (not recording)">
+            <div class="caption"><span class="micDot"></span> Audio capture</div>
+            <canvas id="wave"></canvas>
+          </div>
+
+          <div class="bottomRow">
+            <div class="hint">Speak clearly until time ends.</div>
+            <button class="btn" id="nextBtn">Next <span class="arrow"></span></button>
+          </div>
+        </div>
+      `;
+
+      startWave(document.getElementById("wave"));
+      wireNextButton(true);
+      runQuestionFlow(s.durationSec, [s.prompt, sub, "Begin Speaking Now"]);
+      return;
+    }
+
+    if (s.type === "done") {
+      card.innerHTML = `
+        <div class="questionBlock">
+          <h2 class="questionTitle">Speaking section complete</h2>
+          <p class="questionSub">You can close this tab or refresh to restart.</p>
+        </div>
+      `;
+      speakIfAllowed(s.ttsText);
+    }
+  }
+
+  if ("speechSynthesis" in window) {
+    ensureVoicesLoaded();
+    if (synth.addEventListener) synth.addEventListener("voiceschanged", ensureVoicesLoaded);
+    else synth.onvoiceschanged = ensureVoicesLoaded;
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
