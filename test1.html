@@ -173,11 +173,31 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="inner">
-      <div class="brand"><span class="dot"></span><span>Speaking Section</span></div>
-      <div class="step" id="stepText"></div>
+  <div class="inner" style="position:relative;">
+
+    <div class="brand">
+      <span class="dot"></span>
+      <span>Speaking Section</span>
     </div>
-  </header>
+
+    <div style="
+        position:absolute;
+        left:50%;
+        transform:translateX(-50%);
+        font-size:14px;
+        font-weight:700;
+        color:#374151;
+        font-variant-numeric: tabular-nums;
+      ">
+      Section Time Remaining:
+      <span id="sectionTimer">10:00</span>
+    </div>
+
+    <div class="step" id="stepText"></div>
+
+  </div>
+</header>
+
 
   <main class="wrap">
     <section class="card" id="card"></section>
@@ -209,11 +229,11 @@
   const steps = [
     { type: "interstitial", imgSrc: IMG_DIR + "spkintro.jpg" },
     { type: "question-image", qIndex: 1, durationSec: 60, q1Blank: "cafe", q1ImageSrc: IMG_DIR + "cafe1.jpg" },
-    { type: "question-text", qIndex: 2, durationSec: 60, prompt: "Talk about a time when you went to an interesting restaurant." },
-    { type: "question-text", qIndex: 3, durationSec: 60, prompt: "Some people like to drink caffeinated beverages like coffee or soda, while others do not. Do you enjoy caffeinated drinks? Why or why not?" },
+    { type: "question-text", qIndex: 2, durationSec: 60, prompt: "Talk about an interesting cafe or restaurant that you went to." },
+    { type: "question-text", qIndex: 3, durationSec: 60, prompt: "Some people like caffeinated beverages such as coffee or tea, while others do not. Do you like caffeinated drinks? Why or why not?" },
     { type: "interstitial", imgSrc: IMG_DIR + "spkinterst.jpg" },
-    { type: "question-text", qIndex: 4, durationSec: 90, prompt: "Your friend’s daughter just turned 16 and will get her driver’s license soon. Your friend wants to buy her a car for her birthday. What are the advantages and disadvantages of this idea?" },
-    { type: "question-text", qIndex: 5, durationSec: 90, prompt: "Your child’s school recently received a large donation for purchasing new equipment. They are planning to replace all textbooks with digital tablets.. I am the school principal. Tell me what you think of this idea and convince me to agree with you." },
+    { type: "question-text", qIndex: 4, durationSec: 90, prompt: "There have been several robberies in your neighborhood recently. To increase your home security, your spouse would like to install metal bars on all of your windows. What are the advantages and disadvantages of this idea?" },
+    { type: "question-text", qIndex: 5, durationSec: 90, prompt: "Your child’s school is thinking about requiring all students to join at least one after-school activity or club (such as a sport or the Debate team), because they believe it will help students improve their college applications. I am the principal. Tell me what you think of this plan and try to convince me to agree with you." },
     { type: "done", ttsText: "You have completed the speaking section. Thank you." }
   ];
 
@@ -221,6 +241,8 @@
   let timer = null;
   let remainingMs = 0;
   let running = false;
+  let sectionRemainingMs = 10 * 60 * 1000; // 10 minutes
+let sectionTimerInterval = null;
 
   const synth = window.speechSynthesis;
   let hasUserEnabledAudio = false;
@@ -486,6 +508,27 @@ function escapeHtml(str) {
       }
     }, 100);
   }
+  function startSectionTimer(){
+  const sectionTimerEl = document.getElementById("sectionTimer");
+  if (!sectionTimerEl) return;
+
+  if (sectionTimerInterval) return; // prevent multiple starts
+
+  sectionTimerInterval = setInterval(() => {
+    sectionRemainingMs -= 1000;
+
+    if (sectionRemainingMs < 0) {
+      sectionRemainingMs = 0;
+      clearInterval(sectionTimerInterval);
+    }
+
+    const totalSeconds = Math.floor(sectionRemainingMs / 1000);
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    sectionTimerEl.textContent = `${mins}:${String(secs).padStart(2,"0")}`;
+
+  }, 1000);
+}
 
   function goNext(){
     if (timer) clearInterval(timer);
@@ -659,6 +702,7 @@ function escapeHtml(str) {
   }
 
   render();
+  startSectionTimer();
 })();
 </script>
 </body>
