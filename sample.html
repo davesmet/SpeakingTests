@@ -227,11 +227,11 @@
   const IMG_DIR = "img/";
 
   const steps = [
-    { type: "interstitial", imgSrc: IMG_DIR + "spkintro.jpg" },
+    { type: "interstitial", imgSrc: IMG_DIR + "spkintro.jpg", durationSec: 35 },
     { type: "question-image", qIndex: 1, durationSec: 60, q1Blank: "office", q1ImageSrc: IMG_DIR + "office1.png" },
     { type: "question-text", qIndex: 2, durationSec: 60, prompt: "Talk about a time when you went to an office." },
     { type: "question-text", qIndex: 3, durationSec: 60, prompt: "Would you rather sit at a desk alone or with another person?" },
-    { type: "interstitial", imgSrc: IMG_DIR + "spkinterst.jpg" },
+    { type: "interstitial", imgSrc: IMG_DIR + "spkinterst.jpg", durationSec: 12 },
     { type: "question-text", qIndex: 4, durationSec: 90, prompt: "Your town is considering extending library hours into late evening. What are the advantages and disadvantages of this idea?" },
     { type: "question-text", qIndex: 5, durationSec: 90, prompt: "A school board wants to replace most exams with projects and presentations. I am on the school board. Tell me what you think and try to convince me to agree with you." },
     { type: "done", ttsText: "You have completed the speaking section. Thank you." }
@@ -600,7 +600,7 @@ function escapeHtml(str) {
         </div>
       `;
       document.getElementById("nextBtn").addEventListener("click", () => goNext());
-      startFakeImageVideoPlayback(35, 1.6);
+      startFakeImageVideoPlayback(s.durationSec || 35, 1.6);
       return;
     }
 
